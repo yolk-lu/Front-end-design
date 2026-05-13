@@ -41,4 +41,4 @@ yarn-error.*
 /android
 
 # development documents
-*.md 
+Development_Specification.md 
