@@ -43,6 +43,7 @@ export default function LoginScreen({ navigation }) {
             // 登入成功，儲存當前登入者角色與名字
             await AsyncStorage.setItem('userRole', user.role);
             if (user.name) await AsyncStorage.setItem('currentUserName', user.name);
+            await AsyncStorage.setItem('currentUserEmail', email);
             navigation.replace('Main');
           } else {
             Alert.alert('錯誤', '密碼不正確');
@@ -64,6 +65,7 @@ export default function LoginScreen({ navigation }) {
         await AsyncStorage.setItem(`user_${email}`, JSON.stringify(newUser));
         await AsyncStorage.setItem('userRole', role); // 設定當前角色
         await AsyncStorage.setItem('currentUserName', name); // 儲存當前使用者名稱
+        await AsyncStorage.setItem('currentUserEmail', email); // 儲存當前使用者信箱
         Alert.alert('成功', '註冊並登入成功！');
         navigation.replace('Main');
       } catch (e) {

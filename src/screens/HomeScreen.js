@@ -13,6 +13,9 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import Dashboard from '../components/Dashboard';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../theme/colors';
+import * as Location from 'expo-location';
+import { ActivityIndicator, Alert, Linking } from 'react-native';
+import { findNearbyToilets } from '../utils/locationUtils';
 
 export default function HomeScreen({ navigation }) {
   const [role, setRole] = useState('patient');
@@ -25,6 +28,10 @@ export default function HomeScreen({ navigation }) {
   const [peeModalVisible, setPeeModalVisible] = useState(false);
   const [peeDate, setPeeDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+
+  // Location and Toilet search state
+  const [isSearchingToilets, setIsSearchingToilets] = useState(false);
+  const [nearbyToilets, setNearbyToilets] = useState([]);
 
   useEffect(() => {
     loadRole();
@@ -39,6 +46,43 @@ export default function HomeScreen({ navigation }) {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleToiletNavigation = async () => {
+    setToiletModalVisible(true);
+    setIsSearchingToilets(true);
+
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('權限不足', '需要定位權限才能搜尋附近廁所');
+        setIsSearchingToilets(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // 非同步執行以避免卡住 UI 動畫
+      setTimeout(() => {
+        const nearest = findNearbyToilets(latitude, longitude, 5);
+        setNearbyToilets(nearest);
+        setIsSearchingToilets(false);
+      }, 100);
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert('錯誤', '無法取得定位');
+      setIsSearchingToilets(false);
+    }
+  };
+
+  const handleOpenMap = (lat, lng, name) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    Linking.openURL(url).catch(err => {
+      console.error('An error occurred', err);
+      Alert.alert('錯誤', '無法開啟地圖應用程式');
+    });
   };
 
   const handleLogout = async () => {
@@ -77,7 +121,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => setToiletModalVisible(true)}
+            onPress={handleToiletNavigation}
           >
             <FontAwesome5 name="restroom" size={24} color={colors.primary} />
             <Text style={styles.actionButtonText}>廁所導航</Text>
@@ -85,7 +129,10 @@ export default function HomeScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => setPeeModalVisible(true)}
+            onPress={() => {
+              setPeeDate(new Date());
+              setPeeModalVisible(true);
+            }}
           >
             <Ionicons name="water-outline" size={26} color={colors.primary} />
             <Text style={styles.actionButtonText}>排尿紀錄</Text>
@@ -99,16 +146,18 @@ export default function HomeScreen({ navigation }) {
       {/* Menu Modal */}
       <Modal
         visible={menuVisible}
-        transparent={true}
-        animationType="fade"
+        transparent={false}
+        animationType="slide"
         onRequestClose={() => setMenuVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setMenuVisible(false)}
-        >
-          <View style={styles.menuContainer}>
+        <SafeAreaView style={styles.fullscreenMenuContainer}>
+          <View style={styles.menuHeader}>
+            <Text style={styles.menuTitle}>設定選單</Text>
+            <TouchableOpacity onPress={() => setMenuVisible(false)}>
+              <Ionicons name="close" size={32} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1 }}>
             <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); navigation.navigate('Account'); }}>
               <Text style={styles.menuText}>帳戶資訊</Text>
             </TouchableOpacity>
@@ -131,25 +180,32 @@ export default function HomeScreen({ navigation }) {
               <Text style={[styles.menuText, { color: colors.danger }]}>登出</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </SafeAreaView>
       </Modal>
 
-      {/* Notification Modal */}
+      {/* Notification Modal - 這裡已修改為全螢幕列表樣式 */}
       <Modal
         visible={notificationVisible}
-        transparent={true}
-        animationType="fade"
+        transparent={false}
+        animationType="slide"
         onRequestClose={() => setNotificationVisible(false)}
       >
-        <View style={styles.centerModalOverlay}>
-          <View style={styles.centerModalContainer}>
-            <Text style={styles.modalTitle}>通知</Text>
-            <Text style={styles.modalContent}>目前沒有新通知</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setNotificationVisible(false)}>
-              <Text style={styles.closeButtonText}>關閉</Text>
+        <SafeAreaView style={styles.fullscreenMenuContainer}>
+          <View style={styles.menuHeader}>
+            <Text style={styles.menuTitle}>通知</Text>
+            <TouchableOpacity onPress={() => setNotificationVisible(false)}>
+              <Ionicons name="close" size={32} color={colors.text} />
             </TouchableOpacity>
           </View>
-        </View>
+
+          <ScrollView style={{ flex: 1 }}>
+            {/* 目前為空狀態提示，未來如果有通知資料，可以用 map 渲染出類似 menuItem 的元件 */}
+            <View style={styles.emptyNotificationContainer}>
+              <Ionicons name="notifications-off-outline" size={48} color={colors.textSecondary} style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyNotificationText}>目前沒有新通知</Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
       {/* Toilet Modal */}
@@ -162,11 +218,32 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.centerModalOverlay}>
           <View style={[styles.centerModalContainer, { width: '90%', maxHeight: '80%' }]}>
             <Text style={styles.modalTitle}>廁所導航 (附近廁所)</Text>
-            <ScrollView style={{ width: '100%', marginBottom: 20 }}>
-              <View style={styles.toiletItem}><Text style={styles.toiletText}>1. 大安森林公園公廁 (200m)</Text></View>
-              <View style={styles.toiletItem}><Text style={styles.toiletText}>2. 捷運大安站公廁 (400m)</Text></View>
-              <View style={styles.toiletItem}><Text style={styles.toiletText}>3. 附近便利商店廁所 (500m)</Text></View>
-            </ScrollView>
+
+            {isSearchingToilets ? (
+              <View style={{ alignItems: 'center', marginVertical: 20 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 10, color: colors.textSecondary }}>正在定位與搜尋附近廁所...</Text>
+              </View>
+            ) : (
+              <ScrollView style={{ width: '100%', marginBottom: 20 }}>
+                {nearbyToilets.length === 0 ? (
+                  <Text style={{ textAlign: 'center', color: colors.textSecondary }}>找不到附近廁所資料</Text>
+                ) : (
+                  nearbyToilets.map((toilet, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.toiletItem}
+                      onPress={() => handleOpenMap(toilet.latitude, toilet.longitude, toilet.name)}
+                    >
+                      <Text style={styles.toiletText}>{index + 1}. {toilet.name} ({toilet.distanceDisplay})</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 5 }}>{toilet.address}</Text>
+                      <Text style={{ color: colors.primary, fontSize: 12, marginTop: 5 }}>點擊開啟 Google Maps 導航</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            )}
+
             <TouchableOpacity style={styles.closeButton} onPress={() => setToiletModalVisible(false)}>
               <Text style={styles.closeButtonText}>關閉</Text>
             </TouchableOpacity>
@@ -183,27 +260,24 @@ export default function HomeScreen({ navigation }) {
       >
         <View style={styles.centerModalOverlay}>
           <View style={styles.centerModalContainer}>
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 15, right: 15, zIndex: 1 }}
+              onPress={() => setPeeModalVisible(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>排尿紀錄</Text>
             <Text style={styles.modalContent}>選擇排尿時間：</Text>
-            <Text style={styles.timeDisplay}>
-              {peeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
 
-            {showPicker && (
-              <DateTimePicker
-                value={peeDate}
-                mode="time"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowPicker(false);
-                  if (selectedDate) setPeeDate(selectedDate);
-                }}
-              />
-            )}
-
-            <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.secondary, marginBottom: 10, width: '100%', alignItems: 'center' }]} onPress={() => setShowPicker(true)}>
-              <Text style={styles.closeButtonText}>自行選擇時間</Text>
-            </TouchableOpacity>
+            <DateTimePicker
+              value={peeDate}
+              mode="time"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) setPeeDate(selectedDate);
+              }}
+              style={{ width: '100%', alignSelf: 'center', marginVertical: 10 }}
+            />
 
             <TouchableOpacity style={[styles.closeButton, { width: '100%', alignItems: 'center' }]} onPress={() => {
               // Save record logic here
@@ -250,12 +324,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   actionButtonsContainer: {
-    // 改為垂直排列
     flexDirection: 'column',
     marginBottom: 10,
   },
   actionButton: {
-    // 移除 flex: 1，並增加垂直間距
     backgroundColor: colors.surface,
     padding: 20,
     borderRadius: 15,
@@ -273,25 +345,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  modalOverlay: {
+  fullscreenMenuContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  menuContainer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderBottomLeftRadius: 20,
-    width: 280,
-    paddingTop: 60,
-    shadowColor: '#000',
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
   },
   menuItem: {
     paddingVertical: 15,
@@ -353,5 +422,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.primary,
     marginBottom: 20,
+  },
+  // 新增通知空狀態樣式
+  emptyNotificationContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 100,
+    paddingHorizontal: 20,
+  },
+  emptyNotificationText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
