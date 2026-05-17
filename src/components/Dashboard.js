@@ -4,15 +4,15 @@ import { colors } from '../theme/colors';
 
 export default function Dashboard({ role }) {
   const caregiverReminders = [
-    { id: '1', title: '翻身提醒', time: '10:00 AM' },
-    { id: '2', title: '排尿時間提醒', time: '10:30 AM' },
-    { id: '3', title: '尿溼提醒', time: '隨時' },
+    { id: '1', title: '排尿紀錄', time: '10:30 AM' },
+    { id: '2', title: '翻身提醒', time: '12:00 PM' },
+    { id: '3', title: '尿濕提醒', time: '隨時' },
   ];
 
   const patientReminders = [
-    { id: '1', title: '運動時間提醒', time: '09:00 AM' },
-    { id: '2', title: '排尿時間提醒', time: '10:30 AM' },
-    { id: '3', title: '尿溼提醒(需連接ESP32)', time: '隨時' },
+    { id: '1', title: '排尿紀錄', time: '10:30 AM' },
+    { id: '2', title: '運動時間紀錄', time: '09:00 AM' },
+    { id: '3', title: '尿濕提醒', time: '隨時' },
   ];
 
   const reminders = role === 'caregiver' ? caregiverReminders : patientReminders;

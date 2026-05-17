@@ -1,42 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
+import DietScreen from '../screens/DietScreen'; // 確保這行路徑正確
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
-// Dummy screens for other tabs
 const DummyScreen = ({ name }) => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
     <Text style={{ fontSize: 24, color: colors.text }}>{name}</Text>
   </View>
-);
-
-const CustomTabBarButton = ({ children, onPress }) => (
-  <TouchableOpacity
-    style={{
-      top: -20,
-      justifyContent: 'center',
-      alignItems: 'center',
-    }}
-    onPress={onPress}
-  >
-    <View style={{
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5,
-      elevation: 5,
-    }}>
-      {children}
-    </View>
-  </TouchableOpacity>
 );
 
 export default function MainTabNavigator() {
@@ -60,48 +35,40 @@ export default function MainTabNavigator() {
           }
         }}
       >
-        <Tab.Screen 
-          name="主畫面" 
-          component={HomeScreen} 
+        <Tab.Screen
+          name="主畫面"
+          component={HomeScreen}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />
           }}
         />
-        <Tab.Screen 
-          name="運動" 
-          component={() => <DummyScreen name="運動頁面" />} 
+        <Tab.Screen
+          name="運動"
+          component={() => <DummyScreen name="運動頁面" />}
           options={{
             tabBarIcon: ({ color }) => <FontAwesome5 name="running" size={20} color={color} />
           }}
         />
-        <Tab.Screen 
-          name="Add" 
-          component={DummyScreen}
-          options={{
-            tabBarLabel: () => null,
-            tabBarIcon: () => <Ionicons name="add" size={32} color="#fff" />,
-            tabBarButton: (props) => (
-              <CustomTabBarButton {...props} onPress={() => setAddModalVisible(true)} />
-            )
-          }}
-        />
-        <Tab.Screen 
-          name="飲食" 
-          component={() => <DummyScreen name="飲食頁面" />} 
+
+        {/* 飲食標籤 - 這裡已經改成連結到 DietScreen */}
+        <Tab.Screen
+          name="飲食"
+          component={DietScreen}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="restaurant" size={24} color={color} />
           }}
         />
-        <Tab.Screen 
-          name="數據" 
-          component={() => <DummyScreen name="數據頁面" />} 
+
+        <Tab.Screen
+          name="數據"
+          component={() => <DummyScreen name="數據頁面" />}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />
           }}
         />
       </Tab.Navigator>
 
-      {/* Floating Add Button Modal */}
+      {/* Modal 保持不變 */}
       <Modal
         visible={addModalVisible}
         transparent={true}
