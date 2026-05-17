@@ -1,23 +1,98 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Animated, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { colors } from '../../theme/colors';
+import { Audio } from 'expo-av';
+
+const soundFiles = {
+  water: require('../../../Datasets/white_noise_Datasets/water.mp3'),
+  rain: require('../../../Datasets/white_noise_Datasets/rain.mp3'),
+  waves: require('../../../Datasets/white_noise_Datasets/wave.mp3'),
+  Waterfall: require('../../../Datasets/white_noise_Datasets/waterfall.mp3'),
+};
 
 export default function UrgencySuppressionScreen({ navigation }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedSound, setSelectedSound] = useState('water');
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
   const [breathingPhase, setBreathingPhase] = useState('吸氣'); // 吸氣, 憋氣, 吐氣
+
+  const soundOptions = [
+    { label: '流水聲 (Water Stream)', value: 'water' },
+    { label: '雨聲 (Rain)', value: 'rain' },
+    { label: '海浪聲 (Waves)', value: 'waves' },
+    { label: '瀑布聲 (Waterfall)', value: 'Waterfall' },
+  ];
+
+  const getSelectedSoundLabel = () => {
+    const found = soundOptions.find(opt => opt.value === selectedSound);
+    return found ? found.label : '選擇白噪音';
+  };
 
   // Animation value for breathing circle
   const circleScale = useRef(new Animated.Value(1)).current;
+  const soundRef = useRef(null);
 
   useEffect(() => {
     startBreathingAnimation();
+
+    // Set audio mode for iOS so it plays even in silent mode
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+    });
+
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
   }, []);
 
+  useEffect(() => {
+    if (isPlaying) {
+      playSound(selectedSound);
+    } else {
+      stopSound();
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      playSound(selectedSound);
+    }
+  }, [selectedSound]);
+
+  const playSound = async (soundKey) => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        soundFiles[soundKey],
+        { shouldPlay: true, isLooping: true }
+      );
+      soundRef.current = sound;
+    } catch (error) {
+      console.error("Error playing sound", error);
+    }
+  };
+
+  const stopSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.pauseAsync();
+      }
+    } catch (error) {
+      console.error("Error stopping sound", error);
+    }
+  };
+
   const startBreathingAnimation = () => {
-    // 4-4-4 breathing technique
+    // 4-4-8 breathing technique
     Animated.loop(
       Animated.sequence([
         // Inhale (4s)
@@ -30,7 +105,7 @@ export default function UrgencySuppressionScreen({ navigation }) {
         Animated.delay(4000),
         // Exhale (8s)
         Animated.timing(circleScale, {
-          toValue: 1,
+          toValue: 1.5,
           duration: 8000,
           useNativeDriver: true,
         })
@@ -48,6 +123,13 @@ export default function UrgencySuppressionScreen({ navigation }) {
     }, 4000);
   };
 
+  const handleSoundChange = (itemValue) => {
+    setSelectedSound(itemValue);
+    if (!isPlaying) {
+      setIsPlaying(true);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -55,7 +137,7 @@ export default function UrgencySuppressionScreen({ navigation }) {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>急迫抑制按鈕</Text>
+        <Text style={styles.headerTitle}>急迫抑制</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -65,18 +147,15 @@ export default function UrgencySuppressionScreen({ navigation }) {
           <Text style={styles.sectionTitle}>白噪音播放器</Text>
           <Text style={styles.sectionSubtitle}>舒緩急迫感，轉移注意力</Text>
 
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedSound}
-              onValueChange={(itemValue) => setSelectedSound(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="流水聲 (Water Stream)" value="water" />
-              <Picker.Item label="雨聲 (Rain)" value="rain" />
-              <Picker.Item label="海浪聲 (Waves)" value="waves" />
-              <Picker.Item label="瀑布聲 (Waterfall)" value="Waterfall" />
-            </Picker>
-          </View>
+          {/* Custom Combo Box for Sound Selection */}
+          <TouchableOpacity 
+            style={styles.comboBox} 
+            onPress={() => setShowSoundPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.comboBoxText}>{getSelectedSoundLabel()}</Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
 
           <View style={styles.controlsContainer}>
             <Ionicons name="volume-low" size={24} color={colors.textSecondary} />
@@ -118,6 +197,34 @@ export default function UrgencySuppressionScreen({ navigation }) {
           </View>
         </View>
       </View>
+
+      {/* Sound Selection Modal */}
+      <Modal visible={showSoundPicker} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>選擇白噪音</Text>
+            {soundOptions.map(item => (
+              <TouchableOpacity
+                key={item.value}
+                style={styles.modalOption}
+                onPress={() => {
+                  handleSoundChange(item.value);
+                  setShowSoundPicker(false);
+                }}
+              >
+                <Text style={[styles.modalOptionText, selectedSound === item.value && { color: colors.primary, fontWeight: 'bold' }]}>
+                  {item.label}
+                </Text>
+                {selectedSound === item.value && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setShowSoundPicker(false)}>
+              <Text style={styles.modalCancelText}>取消</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -263,5 +370,65 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  comboBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  comboBoxText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 15,
+    paddingBottom: 25,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  modalCancel: {
+    marginTop: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
   }
 });

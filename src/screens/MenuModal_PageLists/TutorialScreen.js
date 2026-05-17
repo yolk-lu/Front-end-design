@@ -62,8 +62,8 @@ export default function TutorialScreen({ navigation }) {
 
             return (
               <View key={item.id} style={styles.itemWrapper}>
-                <TouchableOpacity 
-                  style={[styles.itemHeader, isExpanded && styles.itemHeaderExpanded, isLast && !isExpanded && { borderBottomWidth: 0 }]} 
+                <TouchableOpacity
+                  style={[styles.itemHeader, isExpanded && styles.itemHeaderExpanded, isLast && !isExpanded && { borderBottomWidth: 0 }]}
                   onPress={() => toggleExpand(item.id)}
                   activeOpacity={0.7}
                 >
@@ -71,10 +71,10 @@ export default function TutorialScreen({ navigation }) {
                     <Ionicons name={item.icon} size={24} color={colors.primary} style={{ marginRight: 15 }} />
                     <Text style={styles.itemTitle}>{item.title}</Text>
                   </View>
-                  <Ionicons 
-                    name={isExpanded ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={colors.textSecondary} 
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color={colors.textSecondary}
                   />
                 </TouchableOpacity>
 

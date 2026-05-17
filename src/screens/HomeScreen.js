@@ -13,6 +13,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import Dashboard from '../components/Dashboard';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../theme/colors';
+import { Paths, File as ExpoFile, Directory } from 'expo-file-system';
 import * as Location from 'expo-location';
 import { ActivityIndicator, Alert, Linking } from 'react-native';
 import { findNearbyToilets } from '../utils/locationUtils';
@@ -27,14 +28,70 @@ export default function HomeScreen({ navigation }) {
   const [toiletModalVisible, setToiletModalVisible] = useState(false);
   const [peeModalVisible, setPeeModalVisible] = useState(false);
   const [peeDate, setPeeDate] = useState(new Date());
+  const [peeRecords, setPeeRecords] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
 
   // Location and Toilet search state
   const [isSearchingToilets, setIsSearchingToilets] = useState(false);
   const [nearbyToilets, setNearbyToilets] = useState([]);
 
+  // Load all pee records from PeeTime_Save directory
+  const loadPeeRecords = () => {
+    try {
+      const saveDir = new Directory(Paths.document, 'PeeTime_Save');
+      if (!saveDir.exists) return;
+
+      const items = saveDir.list();
+      const records = [];
+      for (const item of items) {
+        if (item instanceof ExpoFile && item.name.endsWith('.txt')) {
+          const content = item.textSync();
+          // Extract time string from content
+          const match = content.match(/排尿紀錄時間: (.+)/);
+          if (match) {
+            records.push({
+              fileName: item.name,
+              timeString: match[1].trim(),
+            });
+          }
+        }
+      }
+      // Sort by fileName (which contains timestamp) descending = newest first
+      records.sort((a, b) => b.fileName.localeCompare(a.fileName));
+      setPeeRecords(records);
+    } catch (e) {
+      console.error('無法讀取排尿紀錄', e);
+    }
+  };
+
+  // Save to file system function (new expo-file-system API)
+  const savePeeTimeToFile = (date) => {
+    try {
+      const saveDir = new Directory(Paths.document, 'PeeTime_Save');
+      if (!saveDir.exists) {
+        saveDir.create();
+      }
+
+      const fileName = `pee_record_${Date.now()}.txt`;
+      const file = new ExpoFile(saveDir, fileName);
+
+      const dateString = date.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      const content = `排尿紀錄時間: ${dateString}\n`;
+
+      file.create();
+      file.write(content);
+      console.log('排尿紀錄已儲存至:', file.uri);
+
+      // Reload all records after saving
+      loadPeeRecords();
+    } catch (e) {
+      console.error('無法儲存排尿紀錄 txt 檔', e);
+    }
+  };
+
   useEffect(() => {
     loadRole();
+    loadPeeRecords();
   }, []);
 
   const loadRole = async () => {
@@ -140,7 +197,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Dashboard */}
-        <Dashboard role={role} />
+        <Dashboard role={role} peeRecords={peeRecords} />
       </ScrollView>
 
       {/* Menu Modal */}
@@ -280,7 +337,7 @@ export default function HomeScreen({ navigation }) {
             />
 
             <TouchableOpacity style={[styles.closeButton, { width: '100%', alignItems: 'center' }]} onPress={() => {
-              // Save record logic here
+              savePeeTimeToFile(peeDate);
               setPeeModalVisible(false);
             }}>
               <Text style={styles.closeButtonText}>確認並儲存</Text>
