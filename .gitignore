@@ -42,3 +42,6 @@ yarn-error.*
 
 # development documents
 Development_Specification.md 
+
+# .vscode
+.vscode/
