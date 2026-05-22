@@ -1,30 +1,61 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/colors';
+
+// 在元件外部定義一個全域變數來維持模擬連線狀態。
+// 這樣就算畫面被卸載（unmount）再重新進入，連線狀態依然會被保留。
+let globalIsConnected = false;
+let globalDeviceCode = '';
 
 export default function ESP32ConnectionScreen({ navigation }) {
-  const [deviceCode, setDeviceCode] = useState('');
-  const [isConnected, setIsConnected] = useState(false); // 模擬連線狀態
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors, isDarkMode);
+  const [deviceCode, setDeviceCode] = useState(globalDeviceCode);
+  const [isConnected, setIsConnected] = useState(globalIsConnected);
+  const [isConnecting, setIsConnecting] = useState(false); // 載入動畫狀態
 
+  // 每次進到畫面時，同步一次全域的連線狀態
+  useEffect(() => {
+    setIsConnected(globalIsConnected);
+    setDeviceCode(globalDeviceCode);
+  }, []);
+
+  // 處理連線邏輯
   const handleConnect = () => {
-    // 這裡放入真實的連線邏輯，目前用簡單的 setTimeout 模擬
     if (deviceCode.length > 0) {
-      setTimeout(() => {
+      setIsConnecting(true);
+
+      // 這裡放入真實的硬體連線邏輯，目前用 setTimeout 模擬
+      setTimeout(async () => {
+        globalIsConnected = true;
+        globalDeviceCode = deviceCode;
         setIsConnected(true);
-      }, 1000);
+        setIsConnecting(false);
+        await AsyncStorage.setItem('esp32_connected', 'true');
+      }, 1500); // 模擬 1.5 秒的連線配對時間
     }
+  };
+
+  // 處理中斷連線邏輯
+  const handleDisconnect = async () => {
+    globalIsConnected = false;
+    globalDeviceCode = '';
+    setIsConnected(false);
+    setDeviceCode('');
+    await AsyncStorage.setItem('esp32_connected', 'false');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={{ width: 40, alignItems: 'flex-start' }} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ESP32 連接代號</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -39,57 +70,48 @@ export default function ESP32ConnectionScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Input Area */}
+        {/* Input & Control Area */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>綁定新的硬體感測器</Text>
+          <Text style={styles.inputLabel}>硬體感測器綁定</Text>
+
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, isConnected && styles.textInputDisabled]}
             placeholder="請輸入 ESP32 裝置綁定代碼"
             value={deviceCode}
             onChangeText={setDeviceCode}
             placeholderTextColor={colors.textSecondary}
+            editable={!isConnected && !isConnecting} // 連線成功或連線中時，禁止修改輸入框
           />
-          <TouchableOpacity 
-            style={[styles.primaryButton, { opacity: deviceCode.length === 0 ? 0.6 : 1 }]} 
-            onPress={handleConnect}
-            disabled={deviceCode.length === 0}
-          >
-            <Text style={styles.primaryButtonText}>開始連線 / 綁定裝置</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Tutorial Area */}
-        <View style={styles.tutorialSection}>
-          <View style={styles.tutorialHeader}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.tutorialTitle}>如何找到裝置代號？</Text>
-          </View>
-          
-          <View style={styles.stepContainer}>
-            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>1</Text></View>
-            <Text style={styles.stepText}>翻開您的 ESP32 感測器底部，您會看到一張印有 QR Code 的貼紙。</Text>
-          </View>
-          <View style={styles.stepContainer}>
-            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
-            <Text style={styles.stepText}>QR Code 下方的 6 到 8 碼英文數字混合字串，即為裝置綁定代碼。</Text>
-          </View>
-          <View style={styles.stepContainer}>
-            <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
-            <Text style={styles.stepText}>將代碼輸入上方欄位後點擊連線即可。</Text>
-          </View>
-
-          {/* Placeholder for an image */}
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="qr-code-outline" size={40} color={colors.textSecondary} />
-            <Text style={{ color: colors.textSecondary, marginTop: 10 }}>感測器底部示意圖</Text>
-          </View>
+          {!isConnected ? (
+            // 尚未連線時：顯示「開始連線」按鈕
+            <TouchableOpacity
+              style={[styles.primaryButton, { opacity: (deviceCode.length === 0 || isConnecting) ? 0.6 : 1 }]}
+              onPress={handleConnect}
+              disabled={deviceCode.length === 0 || isConnecting}
+            >
+              {isConnecting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.primaryButtonText}>開始連線 / 綁定裝置</Text>
+              )}
+            </TouchableOpacity>
+          ) : (
+            // 已連線時：顯示「中斷連線」按鈕
+            <TouchableOpacity
+              style={styles.disconnectButton}
+              onPress={handleDisconnect}
+            >
+              <Text style={styles.disconnectButtonText}>中斷裝置連線</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -104,7 +126,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 20,
@@ -171,68 +194,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: colors.background,
   },
+  textInputDisabled: {
+    backgroundColor: colors.background,
+    color: colors.textSecondary,
+    borderColor: colors.border,
+  },
   primaryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: isDarkMode ? '#FFFFFF' : '#000000',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
+    height: 54,
+    justifyContent: 'center',
   },
   primaryButtonText: {
+    color: isDarkMode ? '#000' : '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  disconnectButton: {
+    backgroundColor: '#ef4444', // 紅色按鈕提示中斷
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    height: 54,
+    justifyContent: 'center',
+  },
+  disconnectButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  tutorialSection: {
-    backgroundColor: colors.surface,
-    borderRadius: 15,
-    padding: 20,
-  },
-  tutorialHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  tutorialTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginLeft: 8,
-  },
-  stepContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    paddingRight: 10,
-  },
-  stepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  stepNumberText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  imagePlaceholder: {
-    height: 120,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
   },
 });

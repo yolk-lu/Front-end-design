@@ -1,23 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Animated, Modal, PanResponder, LayoutAnimation } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
-import { Audio } from 'expo-av';
-
-const soundFiles = {
-  water: require('../../../Datasets/white_noise_Datasets/water.mp3'),
-  rain: require('../../../Datasets/white_noise_Datasets/rain.mp3'),
-  waves: require('../../../Datasets/white_noise_Datasets/wave.mp3'),
-  Waterfall: require('../../../Datasets/white_noise_Datasets/waterfall.mp3'),
-};
+import { useAppTheme } from '../../theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function UrgencySuppressionScreen({ navigation }) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors);
   const [selectedSound, setSelectedSound] = useState('water');
   const [showSoundPicker, setShowSoundPicker] = useState(false);
-  const [breathingPhase, setBreathingPhase] = useState('吸氣');
-  const [volume, setVolume] = useState(0.6); // 0.0 ~ 1.0
-  const volumeRef = useRef(0.6); // Non-reactive ref for drag
 
   const soundOptions = [
     { label: '流水聲 (Water Stream)', value: 'water' },
@@ -31,193 +22,48 @@ export default function UrgencySuppressionScreen({ navigation }) {
     return found ? found.label : '選擇白噪音';
   };
 
-  // Animation value for breathing circle
-  const circleScale = useRef(new Animated.Value(1)).current;
-  const soundRef = useRef(null);
-  const isLoadingRef = useRef(false); // Prevent race conditions
-
-  // Volume slider
-  const sliderWidth = useRef(0);
-  const volumeAnim = useRef(new Animated.Value(0.6)).current;
-
   useEffect(() => {
-    startBreathingAnimation();
-
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-    });
-
-    return () => {
-      // Cleanup on unmount
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => { });
-        soundRef.current = null;
+    const loadSavedSound = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('selected_white_noise');
+        if (saved) {
+          setSelectedSound(saved);
+        }
+      } catch (e) {
+        console.error('Failed to load saved white noise:', e);
       }
     };
+    loadSavedSound();
   }, []);
 
-  // Single unified effect for play/stop/switch
-  const loadAndPlay = useCallback(async (soundKey, vol) => {
-    if (isLoadingRef.current) return;
-    isLoadingRef.current = true;
-
-    try {
-      // Always unload previous sound first
-      if (soundRef.current) {
-        try {
-          await soundRef.current.stopAsync();
-          await soundRef.current.unloadAsync();
-        } catch (e) {
-          // Ignore errors from already-unloaded sounds
-        }
-        soundRef.current = null;
-      }
-
-      const { sound } = await Audio.Sound.createAsync(
-        soundFiles[soundKey],
-        { shouldPlay: true, isLooping: true, volume: vol }
-      );
-      soundRef.current = sound;
-    } catch (error) {
-      console.error("Error playing sound", error);
-    } finally {
-      isLoadingRef.current = false;
-    }
-  }, []);
-
-  const stopCurrentSound = useCallback(async () => {
-    if (isLoadingRef.current) return;
-    try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error stopping sound", error);
-    }
-  }, []);
-
-  // Handle play/pause toggle
-  const handlePlayPause = useCallback(async () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-      await stopCurrentSound();
-    } else {
-      setIsPlaying(true);
-      await loadAndPlay(selectedSound, volume);
-    }
-  }, [isPlaying, selectedSound, volume, loadAndPlay, stopCurrentSound]);
-
-  // Handle sound change from picker
   const handleSoundChange = useCallback(async (newSound) => {
     setSelectedSound(newSound);
-    // Always auto-play when selecting a new sound
-    setIsPlaying(true);
-    await loadAndPlay(newSound, volume);
-  }, [volume, loadAndPlay]);
-
-  // Handle volume change (for button taps only)
-  const applyVolume = useCallback(async (newVol) => {
-    const clamped = Math.max(0, Math.min(1, newVol));
-    volumeRef.current = clamped;
-    setVolume(clamped);
-    volumeAnim.setValue(clamped);
-    if (soundRef.current) {
-      try { await soundRef.current.setVolumeAsync(clamped); } catch (e) { }
+    try {
+      await AsyncStorage.setItem('selected_white_noise', newSound);
+    } catch (e) {
+      console.error('Failed to save white noise preference:', e);
     }
-  }, [volumeAnim]);
-
-  // PanResponder for volume slider — updates Animated.Value directly, no re-render
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        const touchX = evt.nativeEvent.locationX;
-        const v = Math.max(0, Math.min(1, touchX / (sliderWidth.current || 1)));
-        volumeAnim.setValue(v);
-        volumeRef.current = v;
-        if (soundRef.current) {
-          soundRef.current.setVolumeAsync(v).catch(() => { });
-        }
-      },
-      onPanResponderMove: (evt) => {
-        const touchX = evt.nativeEvent.locationX;
-        const v = Math.max(0, Math.min(1, touchX / (sliderWidth.current || 1)));
-        volumeAnim.setValue(v);
-        volumeRef.current = v;
-        if (soundRef.current) {
-          soundRef.current.setVolumeAsync(v).catch(() => { });
-        }
-      },
-      onPanResponderRelease: () => {
-        // Sync React state only on release
-        setVolume(volumeRef.current);
-      },
-    })
-  ).current;
-
-  const startBreathingAnimation = () => {
-    Animated.loop(
-      Animated.sequence([
-        // Inhale (4s)
-        Animated.timing(circleScale, {
-          toValue: 1.5,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        // Hold (4s)
-        Animated.delay(4000),
-        // Exhale (8s)
-        Animated.timing(circleScale, {
-          toValue: 1,
-          duration: 8000,
-          useNativeDriver: true,
-        })
-      ])
-    ).start();
-
-    let phase = 0;
-    setInterval(() => {
-      phase = (phase + 1) % 3;
-      if (phase === 0) setBreathingPhase('吸氣 (4秒)');
-      else if (phase === 1) setBreathingPhase('憋氣 (4秒)');
-      else setBreathingPhase('吐氣 (8秒)');
-    }, 4000);
-  };
-
-  const volumePercent = Math.round(volume * 100);
-
-  // Animated interpolations for slider fill width and thumb position
-  const fillWidth = volumeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-  const thumbLeft = volumeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={{ width: 40, alignItems: 'flex-start' }} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>急迫抑制</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
-        {/* White Noise Player Section */}
+      <ScrollView 
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>白噪音播放器</Text>
           <Text style={styles.sectionSubtitle}>舒緩急迫感，轉移注意力</Text>
 
-          {/* Custom Combo Box for Sound Selection */}
           <TouchableOpacity
             style={styles.comboBox}
             onPress={() => setShowSoundPicker(true)}
@@ -226,59 +72,8 @@ export default function UrgencySuppressionScreen({ navigation }) {
             <Text style={styles.comboBoxText}>{getSelectedSoundLabel()}</Text>
             <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
-
-          {/* Volume Slider */}
-          <View style={styles.controlsContainer}>
-            <TouchableOpacity onPress={() => applyVolume(volume - 0.1)}>
-              <Ionicons name="volume-low" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <View
-              style={styles.sliderTrack}
-              onLayout={(e) => {
-                sliderWidth.current = e.nativeEvent.layout.width;
-              }}
-              {...panResponder.panHandlers}
-            >
-              <Animated.View style={[styles.sliderFill, { width: fillWidth }]} />
-              <Animated.View style={[styles.sliderThumb, { left: thumbLeft }]} />
-            </View>
-            <TouchableOpacity onPress={() => applyVolume(volume + 0.1)}>
-              <Ionicons name="volume-high" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.volumeLabel}>音量: {volumePercent}%</Text>
-
-          <TouchableOpacity
-            style={[styles.playButton, isPlaying && styles.playButtonActive]}
-            onPress={handlePlayPause}
-          >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={48}
-              color="#fff"
-              style={{ marginLeft: isPlaying ? 0 : 5 }}
-            />
-          </TouchableOpacity>
         </View>
-
-        {/* Breathing Guide Section */}
-        <View style={[styles.card, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={[styles.sectionTitle, { alignSelf: 'flex-start' }]}>呼吸引導</Text>
-          <Text style={[styles.sectionSubtitle, { alignSelf: 'flex-start', marginBottom: 40 }]}>跟隨圓圈節奏深呼吸</Text>
-
-          <View style={styles.breathingContainer}>
-            <Animated.View
-              style={[
-                styles.breathingCircle,
-                { transform: [{ scale: circleScale }] }
-              ]}
-            />
-            <View style={styles.innerCircle}>
-              <Text style={styles.breathingText}>{breathingPhase}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
+      </ScrollView>
 
       {/* Sound Selection Modal */}
       <Modal visible={showSoundPicker} transparent={true} animationType="fade">
@@ -311,7 +106,7 @@ export default function UrgencySuppressionScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -326,16 +121,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
   },
-  content: {
-    flex: 1,
+  contentContainer: {
     padding: 20,
+    flexGrow: 1,
+    paddingBottom: 60,
   },
   card: {
     backgroundColor: colors.surface,
@@ -404,40 +201,41 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary,
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    shadowColor: colors.primary,
+    shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   playButtonActive: {
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
+    shadowColor: colors.danger,
   },
   breathingContainer: {
-    width: 200,
-    height: 200,
+    width: 180,
+    height: 180,
     justifyContent: 'center',
     alignItems: 'center',
   },
   breathingCircle: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(56, 189, 248, 0.2)',
-  },
-  innerCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.primary,
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+  },
+  innerCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.primary,
+    shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
@@ -445,14 +243,15 @@ const styles = StyleSheet.create({
   },
   breathingText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   comboBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
@@ -500,7 +299,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 15,
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.background,
     borderRadius: 10,
   },
   modalCancelText: {

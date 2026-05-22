@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, Image, Modal, ScrollView, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/colors';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AccountScreen({ navigation }) {
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors);
   // State for all editable fields
   const [userName, setUserName] = useState('蕭雅農');
   const [avatarUri, setAvatarUri] = useState(null);
@@ -84,26 +86,66 @@ export default function AccountScreen({ navigation }) {
     }
   };
 
-  const handleEditAvatar = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const handleAvatarPress = () => {
+    const buttons = [
+      { text: '拍照', onPress: handleTakePhoto },
+      { text: '從相簿選擇', onPress: handleChooseFromLibrary }
+    ];
 
-    if (permissionResult.granted === false) {
-      alert("您已拒絕存取照片權限！");
-      return;
+    if (avatarUri) {
+      buttons.push({ text: '刪除照片', style: 'destructive', onPress: handleDeletePhoto });
     }
 
+    buttons.push({ text: '取消', style: 'cancel' });
+
+    Alert.alert(
+      '設定頭像',
+      '請選擇您要如何設定大頭貼：',
+      buttons
+    );
+  };
+
+  const handleChooseFromLibrary = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('權限不足', '需要相簿存取權限才能選擇照片。');
+      return;
+    }
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!pickerResult.canceled) {
       const uri = pickerResult.assets[0].uri;
       setAvatarUri(uri);
       saveUserData({ avatarUri: uri });
     }
+  };
+
+  const handleTakePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('權限不足', '需要相機權限才能拍攝照片。');
+      return;
+    }
+    const pickerResult = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!pickerResult.canceled) {
+      const uri = pickerResult.assets[0].uri;
+      setAvatarUri(uri);
+      saveUserData({ avatarUri: uri });
+    }
+  };
+
+  const handleDeletePhoto = () => {
+    setAvatarUri(null);
+    saveUserData({ avatarUri: null });
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -180,17 +222,17 @@ export default function AccountScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={{ width: 40, alignItems: 'flex-start' }} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>帳戶資訊</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={{ flex: 1 }}>
         {/* Profile Info */}
         <View style={styles.profileSection}>
-          <TouchableOpacity style={styles.avatarContainer} onPress={handleEditAvatar} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.avatarContainer} onPress={handleAvatarPress} activeOpacity={0.8}>
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
             ) : (
@@ -199,7 +241,7 @@ export default function AccountScreen({ navigation }) {
               </View>
             )}
             <View style={styles.editAvatarBadge}>
-              <Ionicons name="camera" size={16} color="#fff" />
+              <Ionicons name="camera" size={16} color={isDarkMode ? '#000' : '#fff'} />
             </View>
           </TouchableOpacity>
 
@@ -283,7 +325,7 @@ export default function AccountScreen({ navigation }) {
             <View style={styles.pickerModalContainer}>
               <View style={styles.pickerHeader}>
                 <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold' }}>完成</Text>
+                  <Text style={{ color: isDarkMode ? '#000' : colors.primary, fontSize: 16, fontWeight: 'bold' }}>完成</Text>
                 </TouchableOpacity>
               </View>
               <DateTimePicker
@@ -336,6 +378,8 @@ export default function AccountScreen({ navigation }) {
         </View>
       </Modal>
 
+
+
       {/* Action Buttons
       <View style={styles.actionSection}>
         <TouchableOpacity style={styles.primaryButton}>
@@ -350,7 +394,7 @@ export default function AccountScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -365,7 +409,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 20,
@@ -398,7 +443,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -512,7 +557,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.background,
     borderRadius: 10,
   },
   modalCancelText: {
@@ -521,7 +566,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   pickerModalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 40,
@@ -531,7 +576,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.border,
   },
   actionSection: {
     flex: 1,

@@ -4,17 +4,19 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import DietScreen from '../screens/DietScreen'; // 確保這行路徑正確
-import { colors } from '../theme/colors';
+import { useAppTheme } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
-const DummyScreen = ({ name }) => (
+const DummyScreen = ({ name, colors }) => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
     <Text style={{ fontSize: 24, color: colors.text }}>{name}</Text>
   </View>
 );
 
 export default function MainTabNavigator() {
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors);
   const [addModalVisible, setAddModalVisible] = useState(false);
 
   return (
@@ -44,16 +46,16 @@ export default function MainTabNavigator() {
         />
         <Tab.Screen
           name="運動"
-          component={() => <DummyScreen name="運動頁面" />}
+          component={() => <DummyScreen name="運動頁面" colors={colors} />}
           options={{
             tabBarIcon: ({ color }) => <FontAwesome5 name="running" size={20} color={color} />
           }}
         />
 
-        {/* 飲食標籤 - 這裡已經改成連結到 DietScreen */}
+
         <Tab.Screen
           name="飲食"
-          component={DietScreen}
+          component={() => <DummyScreen name="飲食頁面" colors={colors} />}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="restaurant" size={24} color={color} />
           }}
@@ -61,7 +63,7 @@ export default function MainTabNavigator() {
 
         <Tab.Screen
           name="數據"
-          component={() => <DummyScreen name="數據頁面" />}
+          component={() => <DummyScreen name="數據頁面" colors={colors} />}
           options={{
             tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />
           }}
@@ -89,7 +91,7 @@ export default function MainTabNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   centerModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/colors';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -10,29 +10,38 @@ if (Platform.OS === 'android') {
   }
 }
 
-export default function TutorialScreen({ navigation }) {
-  const [expandedId, setExpandedId] = useState(null);
+// 將資料移至元件外以提升效能
+const tutorials = [
+  {
+    id: '1',
+    title: '如何進行凱格爾運動復健？',
+    content: '1. 確保手機鏡頭能拍攝到您的全身骨架。\n2. 開啟 App 並點選「復健模式」。\n3. 系統將透過影像辨識技術引導動作。\n4. 請依照語音指示進行收縮，若姿勢正確系統會記錄次數，若錯誤會立即給予修正建議。',
+    icon: 'body-outline'
+  },
+  {
+    id: '2',
+    title: '如何使用飲食預測與排尿提醒？',
+    content: '1. 透過語音或文字輸入您的飲食內容。\n2. 系統將利用 BERTopic 自動辨識咖啡因或酒精等刺激因子。\n3. 系統會結合歷史排尿日誌進行模型訓練。\n4. 若系統預測有尿急風險，將主動發送通知提醒您如廁。',
+    icon: 'fast-food-outline'
+  },
+  {
+    id: '3',
+    title: '照護者如何進行遠端監測？',
+    content: 'Q: 如何知道長輩尿濕了？\nA: 當電容式感測貼片偵測到濕度超過閾值，系統會立即推播通知至您的手機。\n\nQ: 如何預防長輩發生壓瘡？\nA: 透過 MPU6050 感測器監測體位，若偵測到長時間未翻身，App 會主動發出提醒。\n\nQ: 如何與醫師溝通病情？\nA: 使用照護者管理端的「監測儀表板」查看數據，並可匯出視覺化報表，提供客觀的排尿與翻身紀錄。',
+    icon: 'people-circle-outline'
+  },
+  {
+    id: '4',
+    title: '遇到尿急該怎麼辦？',
+    content: 'Q: 外出時突然感到強烈尿意怎麼辦？\nA: 系統提供「急迫感抑制引導」功能，可播放白噪音或進行呼吸引導，幫助您轉移注意力並延緩排尿。\n\nQ: 附近找不到廁所怎麼辦？\nA: 可使用 App 內的廁所導航功能，系統會自動定位並規劃前往鄰近公廁的最短路徑。',
+    icon: 'map-outline'
+  }
+];
 
-  const tutorials = [
-    {
-      id: '1',
-      title: '如何配戴感測器？',
-      content: '1. 請先確保 ESP32 感測器已充飽電。\n2. 將感測器背面的魔鬼氈固定於您的內褲外側，對準尿濕容易發生的位置。\n3. 開啟 App 並進入「ESP32 連接代號」頁面進行配對。\n4. 確認儀表板上的「尿濕提醒」顯示連線中即可開始使用。',
-      icon: 'hardware-chip-outline'
-    },
-    {
-      id: '2',
-      title: '正常排尿數據範圍是多少？',
-      content: '一般健康成人的排尿狀況參考：\n• 頻率：白天約 4-8 次，夜間 0-1 次。\n• 尿量：每次約 200-400 毫升，每日總量約 1000-2000 毫升。\n若您的排尿頻率異常頻繁或有強烈急迫感，可使用本 App 記錄並匯出給醫師參考。',
-      icon: 'water-outline'
-    },
-    {
-      id: '3',
-      title: '常見問題 (FAQ)',
-      content: 'Q: 裝置充飽電能用多久？\nA: 在正常使用情況下，充飽電約可待機 3-5 天。\n\nQ: 手機需要一直開著藍牙嗎？\nA: 是的，為了即時接收尿濕警告，請保持手機藍牙開啟並讓 App 於背景執行。\n\nQ: 資料會不見嗎？\nA: 您的資料目前儲存於手機設備中，建議定期匯出備份。',
-      icon: 'help-circle-outline'
-    }
-  ];
+export default function TutorialScreen({ navigation }) {
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors);
+  const [expandedId, setExpandedId] = useState(null);
 
   const toggleExpand = (id) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -41,13 +50,12 @@ export default function TutorialScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={{ width: 40, alignItems: 'flex-start' }} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>教學指引</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -63,9 +71,9 @@ export default function TutorialScreen({ navigation }) {
             return (
               <View key={item.id} style={styles.itemWrapper}>
                 <TouchableOpacity
-                  style={[styles.itemHeader, isExpanded && styles.itemHeaderExpanded, isLast && !isExpanded && { borderBottomWidth: 0 }]}
+                  style={[styles.itemHeader, isExpanded && styles.itemHeaderExpanded]}
                   onPress={() => toggleExpand(item.id)}
-                  activeOpacity={0.7}
+                  activeOpacity={1}
                 >
                   <View style={styles.itemTitleContainer}>
                     <Ionicons name={item.icon} size={24} color={colors.primary} style={{ marginRight: 15 }} />
@@ -92,7 +100,7 @@ export default function TutorialScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -105,9 +113,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
-  },
-  backButton: {
-    padding: 5,
   },
   headerTitle: {
     fontSize: 20,
@@ -132,9 +137,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  itemWrapper: {
-    // 容器樣式
   },
   itemHeader: {
     flexDirection: 'row',
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
   itemContent: {
     paddingBottom: 20,
     paddingRight: 10,
-    paddingLeft: 40, // 縮排對齊文字
+    paddingLeft: 40,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },

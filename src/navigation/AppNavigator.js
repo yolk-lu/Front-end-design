@@ -11,6 +11,7 @@ import TutorialScreen from '../screens/MenuModal_PageLists/TutorialScreen';
 import DataExportScreen from '../screens/MenuModal_PageLists/DataExportScreen';
 import DoctorRecordImportScreen from '../screens/MenuModal_PageLists/DoctorRecordImportScreen';
 import ChangePasswordScreen from '../screens/MenuModal_PageLists/ChangePasswordScreen';
+import ThemeScreen from '../screens/MenuModal_PageLists/ThemeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ export default function AppNavigator() {
         <Stack.Screen name="DataExport" component={DataExportScreen} />
         <Stack.Screen name="DoctorRecordImport" component={DoctorRecordImportScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="Theme" component={ThemeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

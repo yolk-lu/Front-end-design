@@ -13,11 +13,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import { useAppTheme } from '../theme/colors';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen({ navigation }) {
+  const { colors } = useAppTheme();
+  const styles = getStyles(colors);
+
   // 狀態管理
   const [isLoginMode, setIsLoginMode] = useState(true); // 切換登入或註冊
   
@@ -222,7 +225,7 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

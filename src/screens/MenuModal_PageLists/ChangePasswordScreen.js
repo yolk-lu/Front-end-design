@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ChangePasswordScreen({ navigation }) {
+  const { colors, isDarkMode } = useAppTheme();
+  const styles = getStyles(colors, isDarkMode);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,11 +62,11 @@ export default function ChangePasswordScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={{ width: 40, alignItems: 'flex-start' }} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>修改密碼</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -76,6 +78,7 @@ export default function ChangePasswordScreen({ navigation }) {
             onChangeText={setOldPassword}
             secureTextEntry
             placeholder="請輸入目前密碼"
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
 
@@ -87,6 +90,7 @@ export default function ChangePasswordScreen({ navigation }) {
             onChangeText={setNewPassword}
             secureTextEntry
             placeholder="請輸入新密碼"
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
 
@@ -98,6 +102,7 @@ export default function ChangePasswordScreen({ navigation }) {
             onChangeText={setConfirmPassword}
             secureTextEntry
             placeholder="請再次輸入新密碼"
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
 
@@ -109,7 +114,7 @@ export default function ChangePasswordScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -124,7 +129,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   backButton: {
-    padding: 5,
+    width: 40,
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 20,
@@ -153,14 +159,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   submitButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: isDarkMode ? '#FFFFFF' : '#000000',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
   },
   submitButtonText: {
-    color: '#fff',
+    color: isDarkMode ? '#000' : '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
