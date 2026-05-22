@@ -7,14 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function UrgencySuppressionScreen({ navigation }) {
   const { colors, isDarkMode } = useAppTheme();
   const styles = getStyles(colors);
-  const [selectedSound, setSelectedSound] = useState('water');
+  const [selectedSound, setSelectedSound] = useState('wind');
   const [showSoundPicker, setShowSoundPicker] = useState(false);
 
   const soundOptions = [
-    { label: '流水聲 (Water Stream)', value: 'water' },
-    { label: '雨聲 (Rain)', value: 'rain' },
-    { label: '海浪聲 (Waves)', value: 'waves' },
-    { label: '瀑布聲 (Waterfall)', value: 'Waterfall' },
+    { label: '大自然風聲 (Wind)', value: 'wind' },
+    { label: '火車行駛聲 (Train)', value: 'train' },
+    { label: '飛機引擎聲 (Airplane)', value: 'airplane' },
+    { label: '嬰兒助眠聲 (Baby Sleep)', value: 'baby_sleep' },
   ];
 
   const getSelectedSoundLabel = () => {

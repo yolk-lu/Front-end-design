@@ -381,16 +381,16 @@ export default function HomeScreen({ navigation }) {
         });
 
         // 讀取存儲的白噪音類型
-        const savedSound = await AsyncStorage.getItem('selected_white_noise') || 'water';
+        const savedSound = await AsyncStorage.getItem('selected_white_noise') || 'wind';
 
         const soundFiles = {
-          water: require('../../Datasets/white_noise_Datasets/water.mp3'),
-          rain: require('../../Datasets/white_noise_Datasets/rain.mp3'),
-          waves: require('../../Datasets/white_noise_Datasets/wave.mp3'),
-          Waterfall: require('../../Datasets/white_noise_Datasets/waterfall.mp3'),
+          wind: require('../../Datasets/white_noise_Datasets/wind.mp3'),
+          train: require('../../Datasets/white_noise_Datasets/train.mp3'),
+          airplane: require('../../Datasets/white_noise_Datasets/airplane.mp3'),
+          baby_sleep: require('../../Datasets/white_noise_Datasets/baby_sleep.mp3'),
         };
 
-        const soundSource = soundFiles[savedSound] || soundFiles.water;
+        const soundSource = soundFiles[savedSound] || soundFiles.wind;
 
         const { sound } = await Audio.Sound.createAsync(
           soundSource,

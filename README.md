@@ -10,24 +10,24 @@
 
 ```
 App (Root Stack Navigator - AppNavigator.js)
-├── 🔑 LoginScreen (登入頁面)
-└── 📱 Main (主要導覽 - MainTabNavigator.js)
-    ├── 🏠 HomeScreen (首頁/儀錶板)
-    │   ├── 📋 MenuModal (右上角側邊選單) ──> 導向各功能設定子頁面 (詳見下方)
-    │   ├── 🗺️ Toilet Navigation Modal (內建 OpenStreetMap 廁所導航)
-    │   │   ├── 🔊 白噪音播放 (背景持續播放)
-    │   │   └── 🧘 懸浮拖曳式呼吸引導 Widget (4-4-8 秒呼吸節奏，支援任意拖曳)
-    │   └── 📝 Pee Record Modal (手動排尿登記)
-    ├── 🏃 DietScreen (飲食紀錄頁面)
-    ├── 🧘 運動頁面 (佔位頁面)
-    └── 📊 數據頁面 (佔位頁面)
+├── LoginScreen (登入頁面)
+└── Main (主要導覽 - MainTabNavigator.js)
+    ├── HomeScreen (首頁/儀錶板)
+    │   ├── MenuModal (右上角側邊選單) ──> 導向各功能設定子頁面 (詳見下方)
+    │   ├── Toilet Navigation Modal (內建 OpenStreetMap 廁所導航)
+    │   │   ├── 白噪音播放 (背景持續播放)
+    │   │   └── 懸浮拖曳式呼吸引導 Widget (4-4-8 秒呼吸節奏，支援任意拖曳)
+    │   └── Pee Record Modal (手動排尿登記)
+    ├── DietScreen (飲食紀錄頁面)
+    ├── 運動頁面 (佔位頁面)
+    └── 數據頁面 (佔位頁面)
 ```
 
 ### ⚙️ 設定與管理子頁面 (由 HomeScreen 側邊選單導航)
 - **Account (個人檔案管理)**: 管理使用者姓名、性別、生日、身高、體重，可上傳/拍照大頭貼，並結合個人診斷書狀態。
 - **ChangePassword (修改密碼)**: 提供密碼變更功能。
 - **ESP32Connection (硬體連線設定)**: 搜尋並配對 ESP32 與 MPU6050 模組，即時讀取尿濕感測狀態與姿勢角度。
-- **UrgencySuppression (急迫抑制設定)**: 白噪音種類設定（流水、雨聲、海浪、瀑布），選取之音效將會自動保存至本機，並於地圖導航中播放。
+- **UrgencySuppression (急迫抑制設定)**: 白噪音種類設定（風聲、火車聲、飛機聲、嬰兒助眠聲），選取之音效將會自動保存至本機，並於地圖導航中播放。
 - **Theme (主題設定)**: 支援「淺色模式」與「深色模式」一鍵切換。
 - **Tutorial (衛教專區)**: 提供專業骨盆底肌訓練、膀胱訓練等圖文說明。
 - **DoctorRecordImport (醫生診斷紀錄匯入)**: 病患可拍照/選取照片匯入醫生診斷證明書，完成認證。
