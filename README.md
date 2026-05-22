@@ -1,44 +1,103 @@
-# Front-End Design: React Native UI
+# U-Smooth App - 智慧照護輔助系統
 
-這是一個以 React Native (Expo) 開發的高質感行動應用程式介面專案。本專案主要是針對病患與照護者所設計的智慧照護輔助系統介面。
+本專案是一個以 React Native (Expo) 開發的高質感行動應用程式。主要是針對病患與照護者所設計的智慧照護與急迫尿意抑制輔助系統，並支援硬體數據監測（如尿濕提醒）與自定義白噪音/呼吸引導放鬆功能。
 
-## 介面設計樣式
+---
 
-本專案著重於提供乾淨、直覺且現代化的使用者體驗，主要設計特點包含：
+## 📱 頁面結構與子頁面樹狀圖 (Screen Tree)
 
-- **動態身分登入 (Login Screen)**: 支援「照護者」與「病患」兩種登入身分。採用高質感玻璃擬態卡片選擇器，點擊後會根據選擇動態儲存身分。
-- **個人化儀錶板 (Dashboard)**: 進入主畫面後，系統會依照登入身分呈現不同的提醒與資訊。
-  - **照護者**：翻身提醒、排尿時間提醒、尿溼提醒。
-  - **病患**：運動時間提醒、排尿時間提醒、尿溼提醒（搭配 ESP32 連接）。
-- **流暢的懸浮視窗 (Modals)**: 「廁所導航」、「排尿紀錄」以及「自訂功能 (加號)」皆採用半透明的 Modal 彈出式視窗進行互動，無需頻繁切換頁面，提升操作流暢度。
-- **直覺式底部導覽列 (Bottom Tabs)**: 包含主畫面、運動、飲食、數據等主要頁面，中間並設有特殊突起的「加號」快速功能鍵。
-- **主題色彩 (Theme)**: 採用柔和藍色 (`#4A90E2`) 與綠色 (`#50E3C2`) 作為主色調，搭配白色卡片設計 (`#FFFFFF`) 與淺色背景，呈現舒適的醫療健康風格。
+以下為本專案的頁面路由與 Modal 視窗架構圖：
 
-## 如何使用
-
-### 1. 環境準備
-請確保您的電腦已安裝 [Node.js](https://nodejs.org/)。
-
-### 2. 安裝依賴套件
-請將專案 clone 下來，並安裝相關的 npm 套件：
-```bash
-# 安裝依賴套件 (如果使用 expo 可以使用 npx expo install)
-npm install
+```
+App (Root Stack Navigator - AppNavigator.js)
+├── 🔑 LoginScreen (登入頁面)
+└── 📱 Main (主要導覽 - MainTabNavigator.js)
+    ├── 🏠 HomeScreen (首頁/儀錶板)
+    │   ├── 📋 MenuModal (右上角側邊選單) ──> 導向各功能設定子頁面 (詳見下方)
+    │   ├── 🗺️ Toilet Navigation Modal (內建 OpenStreetMap 廁所導航)
+    │   │   ├── 🔊 白噪音播放 (背景持續播放)
+    │   │   └── 🧘 懸浮拖曳式呼吸引導 Widget (4-4-8 秒呼吸節奏，支援任意拖曳)
+    │   └── 📝 Pee Record Modal (手動排尿登記)
+    ├── 🏃 DietScreen (飲食紀錄頁面)
+    ├── 🧘 運動頁面 (佔位頁面)
+    └── 📊 數據頁面 (佔位頁面)
 ```
 
-### 3. 啟動開發伺服器
+### ⚙️ 設定與管理子頁面 (由 HomeScreen 側邊選單導航)
+- **Account (個人檔案管理)**: 管理使用者姓名、性別、生日、身高、體重，可上傳/拍照大頭貼，並結合個人診斷書狀態。
+- **ChangePassword (修改密碼)**: 提供密碼變更功能。
+- **ESP32Connection (硬體連線設定)**: 搜尋並配對 ESP32 與 MPU6050 模組，即時讀取尿濕感測狀態與姿勢角度。
+- **UrgencySuppression (急迫抑制設定)**: 白噪音種類設定（流水、雨聲、海浪、瀑布），選取之音效將會自動保存至本機，並於地圖導航中播放。
+- **Theme (主題設定)**: 支援「淺色模式」與「深色模式」一鍵切換。
+- **Tutorial (衛教專區)**: 提供專業骨盆底肌訓練、膀胱訓練等圖文說明。
+- **DoctorRecordImport (醫生診斷紀錄匯入)**: 病患可拍照/選取照片匯入醫生診斷證明書，完成認證。
+- **DataExport (數據匯出)**: 將本機排尿、飲水紀錄匯出為 PDF、JSON 或 CSV 等格式。
+
+---
+
+## 🛠️ 各分頁核心功能與主函式說明
+
+### 1. `HomeScreen.js` (首頁儀錶板與主控制器)
+*首頁包含身分判斷、本機排尿檔案儲存、附近公廁搜尋與 OSM 內建導航聯動功能。*
+* **主要函式與邏輯：**
+  * `loadPeeRecords()`: 使用 `expo-file-system` 從本機目錄下讀取排尿與飲水紀錄檔案。
+  * `saveRecordToFile(peeDate, recordType)`: 將新的排尿或飲水數據，以 JSON 格式個別儲存至本機檔案系統。
+  * `handleOpenOSMMap(toilet)`: 觸發廁所地圖導航。獲取當前定位，並打開 OSM WebView 導航 Modal。
+  * `toggleWhiteNoise()`: 地圖導航期間啟動背景白噪音播放。讀取使用者選定的白噪音音效，利用 `expo-av` 進行循環背景播放。
+  * **懸浮拖曳呼吸引導機制**：
+    * `breathState` / `circleScale` 處理：以吸氣 4s、憋氣 4s、吐氣 8s 驅動 Animated 縮放動畫。
+    * `panResponder` 處理：採用 React Native `PanResponder` 將呼吸引導做成懸浮 Widget，支援使用者手勢拖曳至地圖任意位置。
+
+### 2. `UrgencySuppressionScreen.js` (急迫抑制設定)
+*此頁面為使用者提供白噪音的偏好設定，預設不播放任何聲音，且不顯示呼引導。*
+* **主要函式與邏輯：**
+  * `handleSoundChange(newSound)`: 當使用者更改白噪音選項時，將所選的選項（如 `water`、`rain`）透過 `AsyncStorage` 寫入本機硬碟持久化。
+  * `loadSavedSound()`: 進入頁面時載入已儲存的白噪音，以供下拉選單（ComboBox）呈現。
+
+### 3. `ESP32ConnectionScreen.js` (硬體連接與健康監控)
+*與外部 ESP32 模組的配對狀態管理，包含尿溼警報模擬。*
+* **主要函式與邏輯：**
+  * `handleConnectESP32()`: 模擬連接藍牙設備，並將配對狀態寫入 `AsyncStorage`，使儀錶板即時改變「尿濕提醒」區塊的顯示。
+
+### 4. `AccountScreen.js` & `DoctorRecordImportScreen.js` (檔案與診斷書認證)
+*使用者個人基本資料維護與診斷證明圖片管理。*
+* **主要函式與邏輯：**
+  * `pickImage()` / `takePhoto()`: 使用 `expo-image-picker` 調用相機或相簿，將大頭貼或診斷書照片儲存至本機。
+  * `AsyncStorage` 整合：保存使用者的最新個人檔案。
+
+### 5. `DataExportScreen.js` (數據分析與匯出)
+*提供匯出報表與匯入備份功能。*
+* **主要函式與邏輯：**
+  * `handleExportData(format)`: 讀取所有儲存的排尿紀錄檔案，包裝成 CSV 或 JSON 格式，並使用 Expo Sharing 進行檔案匯出。
+
+---
+
+## 💻 技術棧與核心套件
+
+* **核心框架**: React Native (Expo)
+* **狀態管理與本地存儲**: React Hooks, `AsyncStorage`
+* **檔案系統**: `expo-file-system` (用以儲存個別的尿尿與飲水 JSON 檔案紀錄)
+* **地圖與導航**: `react-native-webview` (串接 OpenStreetMap 與 OSRM 步行路徑規劃)
+* **音訊控制**: `expo-av` (處理白噪音音訊循環與後台播放)
+* **手勢互動**: `PanResponder`, `Animated` (實現可拖曳式悬浮圓圈)
+* **多媒體**: `expo-image-picker`
+
+---
+
+## 🚀 快速開始與運行
+
+### 1. 安裝依賴套件
+```bash
+npm install
+# 或使用 Expo
+npx expo install
+```
+
+### 2. 啟動開發伺服器
 ```bash
 npx expo start
 ```
 
-### 4. 在手機上預覽
-- **iOS/Android**: 在手機上下載並安裝 **Expo Go** 應用程式。
-- 開啟手機相機或 Expo Go 內建掃描器，掃描終端機顯示的 QR Code，即可開始操作體驗！
-
-## TODO list
-
-- [ ] **完善各分頁內容**：完成「運動」、「飲食」、「數據」等佔位頁面 (Dummy Screens) 的實際介面設計。
-- [ ] **實作彈出視窗細節**：將「廁所導航」、「排尿紀錄」與「加號按鈕」的空視窗填入實際的操作表單或導航邏輯。
-- [ ] **ESP32 硬體整合**：串接 ESP32 藍牙/Wi-Fi 模組，即時讀取並顯示尿溼提醒等感測器資料。
-- [ ] **後端 API 串接**：實作真實的後端 API 登入、帳號管理、預設抑制按鈕以及醫生診斷證明匯入功能。
-- [ ] **資料匯出功能**：完成儀錶板數據統計，並實作報表匯出 (Export) 功能。
+### 3. 在手機上預覽
+1. 手機上下載並安裝 **Expo Go**。
+2. 掃描終端機中的 QR Code 即可開始體驗！
