@@ -1,10 +1,10 @@
 # U-Smooth App - 智慧照護輔助系統
 
-本專案是一個以 React Native (Expo) 開發的高質感行動應用程式。主要是針對病患與照護者所設計的智慧照護與急迫尿意抑制輔助系統，並支援硬體數據監測（如尿濕提醒）與自定義白噪音/呼吸引導放鬆功能。
+本專案是一個以 React Native (Expo) 開發的行動應用程式。主要是針對病患與照護者所設計的智慧照護與急迫尿意抑制輔助系統，並支援硬體數據監測（如尿濕提醒）。
 
 ---
 
-## 📱 頁面結構與子頁面樹狀圖 (Screen Tree)
+## 頁面結構與子頁面樹狀圖 (Screen Tree)
 
 以下為本專案的頁面路由與 Modal 視窗架構圖：
 
@@ -12,30 +12,50 @@
 App (Root Stack Navigator - AppNavigator.js)
 ├── LoginScreen (登入頁面)
 └── Main (主要導覽 - MainTabNavigator.js)
-    ├── HomeScreen (首頁/儀錶板)
-    │   ├── MenuModal (右上角側邊選單) ──> 導向各功能設定子頁面 (詳見下方)
-    │   ├── Toilet Navigation Modal (內建 OpenStreetMap 廁所導航)
-    │   │   ├── 白噪音播放 (背景持續播放)
-    │   │   └── 懸浮拖曳式呼吸引導 Widget (4-4-8 秒呼吸節奏，支援任意拖曳)
+    ├── HomeScreen (首頁)
+    │   ├── 彈出視窗 (Modals) 架構
+    │   │   ├── MenuModal (右上角側邊設定選單) ──> 導向設定子頁面
+    │   │   ├── PlusModal (首頁快捷功能選單)
+    │   │   │   ├── PeeRecordModal (手動登記排尿/飲水記錄)
+    │   │   │   └── ToiletModal (500m內附近廁所清單)
+    │   │   │       └── OSMMapModal (內建 OpenStreetMap 廁所導航)
+    │   │   │           ├── 拖曳式呼吸引導 Widget
+    │   │   │           └── 背景白噪音播放控制
+    │   │   └── NotificationModal (提醒詳情視窗)
     │   └── Pee Record Modal (手動排尿登記)
+    ├── ExerciseScreen (運動紀錄頁面)
     ├── DietScreen (飲食紀錄頁面)
-    ├── 運動頁面 (佔位頁面)
-    └── 數據頁面 (佔位頁面)
+    └── DataScreen (數據統計頁面)
 ```
 
-### ⚙️ 設定與管理子頁面 (由 HomeScreen 側邊選單導航)
-- **Account (個人檔案管理)**: 管理使用者姓名、性別、生日、身高、體重，可上傳/拍照大頭貼，並結合個人診斷書狀態。
+### 彈出視窗 (Modals) 詳細控制清單
+
+本專案利用多個高度互動的浮動 Modal 提升 UX 體驗，避免頻繁頁面切換：
+1. **首頁快捷選單 (PlusModal)**: 由狀態 `plusModalVisible` 控制。點擊首頁懸浮加號觸發，提供手動紀錄及廁所導航的入口。
+2. **手動登記排尿/飲水 (PeeRecordModal)**: 由狀態 `peeModalVisible` 控制。內置日期、時間與排尿/飲水容量表單。
+3. **附近廁所清單 (ToiletModal)**: 由狀態 `toiletModalVisible` 控制。自動搜尋周邊 500 公尺之廁所並列出距離。
+4. **內建地圖導航 (OSMMapModal)**: 由狀態 `osmMapVisible` 控制。
+   - 使用 `react-native-webview` 載入 OpenStreetMap 與 OSRM 步行引導。
+   - **懸浮拖曳式呼吸引導**: 內置 4-4-8 秒深呼吸引導小圓圈，支援手勢拖曳，不擋地圖。
+   - **背景白噪音播放**: 支援在背景持續撥放選定的白噪音以轉移尿意注意力。
+5. **提醒詳情彈窗 (NotificationModal)**: 由狀態 `notificationVisible` 控制。顯示翻身、運動、尿濕或排尿提醒的具體操作與注意事項。
+6. **側邊設定選單 (MenuModal)**: 由狀態 `menuVisible` 控制。點擊右上角漢堡鈕展開，提供修改密碼、硬體連接、衛教資訊、數據匯出等設定頁面入口。
+
+
+
+###  設定與管理子頁面 (由 HomeScreen 側邊選單導航)
+- **Account (個人檔案管理)**: 管理使用者姓名、性別、生日、帳號與聯絡資訊，以及刪除帳號。
 - **ChangePassword (修改密碼)**: 提供密碼變更功能。
 - **ESP32Connection (硬體連線設定)**: 搜尋並配對 ESP32 與 MPU6050 模組，即時讀取尿濕感測狀態與姿勢角度。
 - **UrgencySuppression (急迫抑制設定)**: 白噪音種類設定（風聲、火車聲、飛機聲、嬰兒助眠聲），選取之音效將會自動保存至本機，並於地圖導航中播放。
 - **Theme (主題設定)**: 支援「淺色模式」與「深色模式」一鍵切換。
-- **Tutorial (衛教專區)**: 提供專業骨盆底肌訓練、膀胱訓練等圖文說明。
-- **DoctorRecordImport (醫生診斷紀錄匯入)**: 病患可拍照/選取照片匯入醫生診斷證明書，完成認證。
-- **DataExport (數據匯出)**: 將本機排尿、飲水紀錄匯出為 PDF、JSON 或 CSV 等格式。
+- **Tutorial (教學指引)**: 提供說明。
+- **DataExport (數據匯出)**: 將排尿與尿濕、運動、飲食紀錄匯出為 CSV 或 TXT 等格式。
+- **DoctorRecordImport (醫生診斷紀錄匯入)**: 病患可拍照/選取照片匯入醫生診斷證明書。
 
 ---
 
-## 🛠️ 各分頁核心功能與主函式說明
+##  各分頁核心功能與主函式說明
 
 ### 1. `HomeScreen.js` (首頁儀錶板與主控制器)
 *首頁包含身分判斷、本機排尿檔案儲存、附近公廁搜尋與 OSM 內建導航聯動功能。*
@@ -72,7 +92,7 @@ App (Root Stack Navigator - AppNavigator.js)
 
 ---
 
-## 💻 技術棧與核心套件
+##  技術棧與核心套件
 
 * **核心框架**: React Native (Expo)
 * **狀態管理與本地存儲**: React Hooks, `AsyncStorage`
@@ -84,7 +104,7 @@ App (Root Stack Navigator - AppNavigator.js)
 
 ---
 
-## 🚀 快速開始與運行
+##  快速開始與運行
 
 ### 1. 安裝依賴套件
 ```bash
